@@ -3,12 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 import tinker
-from harbor.llms.base import (
-    BaseLLM,
-    ContextLengthExceededError,
-    LLMResponse,
-    OutputLengthExceededError,
-)
+from harbor.llms.base import BaseLLM, ContextLengthExceededError, LLMResponse, OutputLengthExceededError
 from harbor.models.metric import UsageInfo
 from pydantic import BaseModel, ConfigDict, PrivateAttr
 from tinker_cookbook.renderers import Renderer
@@ -16,16 +11,15 @@ from tinker_cookbook.tokenizer_utils import Tokenizer
 
 
 class TinkerLLM(BaseLLM, BaseModel):
-    """LLM backend using Tinker SamplingClient for Harbor."""
+    """LLM backend using Tinker SamplingClient for Harbor agents."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     model_name: str
-    max_tokens: int
-    temperature: float
-    context_limit: int
+    max_tokens: int = 1024
+    temperature: float = 0.7
+    context_limit: int = 32000
 
-    # Private attributes (excluded from serialization)
     _client: tinker.SamplingClient = PrivateAttr()
     _tokenizer: Tokenizer = PrivateAttr()
     _renderer: Renderer = PrivateAttr()
@@ -40,18 +34,6 @@ class TinkerLLM(BaseLLM, BaseModel):
         temperature: float = 0.7,
         context_limit: int = 32000,
     ):
-        """
-        Initialize TinkerLLM.
-
-        Args:
-            sampling_client: Tinker SamplingClient for sampling
-            tokenizer: Tokenizer for encoding/decoding text
-            renderer: Renderer for formatting conversations
-            model_name: Model name (for metadata)
-            max_tokens: Maximum tokens to generate per response
-            temperature: Sampling temperature
-            context_limit: Maximum context length
-        """
         super().__init__(
             model_name=model_name,
             max_tokens=max_tokens,
@@ -62,22 +44,11 @@ class TinkerLLM(BaseLLM, BaseModel):
         self._tokenizer = tokenizer
         self._renderer = renderer
 
-    @property
-    def tokenizer(self) -> Tokenizer:
-        """Get the tokenizer."""
-        return self._tokenizer
-
-    @property
-    def renderer(self) -> Renderer:
-        """Get the renderer."""
-        return self._renderer
-
     def get_model_context_limit(self) -> int:
-        """Get the context limit (max input tokens) for the model."""
         return self.context_limit
 
     def update_sampling_client(self, sampling_client: tinker.SamplingClient) -> None:
-        """Update the sampling client (e.g., after weight updates)."""
+        """Update the sampling client after weight updates."""
         self._client = sampling_client
 
     async def call(
@@ -86,34 +57,13 @@ class TinkerLLM(BaseLLM, BaseModel):
         message_history: list[dict[str, Any]] | None = None,
         **kwargs,
     ) -> LLMResponse:
-        """
-        Sample from Tinker and return an LLMResponse.
-
-        Args:
-            prompt: The user prompt to add
-            message_history: Previous conversation messages
-            **kwargs: Additional arguments (ignored for compatibility)
-
-        Returns:
-            LLMResponse with content, token IDs, and logprobs
-
-        Raises:
-            ContextLengthExceededError: If the input exceeds context limit
-            OutputLengthExceededError: If the output was truncated
-        """
-        if message_history is None:
-            message_history = []
-        messages = message_history + [{"role": "user", "content": prompt}]
-
+        """Sample from Tinker and return an LLMResponse."""
+        messages = (message_history or []) + [{"role": "user", "content": prompt}]
         model_input = self._renderer.build_generation_prompt(messages)
 
-        stop_sequences = self._renderer.get_stop_sequences()
-
-        input_length = model_input.length
-        if input_length > self.context_limit - self.max_tokens:
+        if model_input.length > self.context_limit - self.max_tokens:
             raise ContextLengthExceededError(
-                f"Context length {input_length} exceeds limit "
-                f"{self.context_limit - self.max_tokens}"
+                f"Context length {model_input.length} exceeds limit {self.context_limit - self.max_tokens}"
             )
 
         result = await self._client.sample_async(
@@ -122,42 +72,35 @@ class TinkerLLM(BaseLLM, BaseModel):
             sampling_params=tinker.SamplingParams(
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
-                stop=stop_sequences,
+                stop=self._renderer.get_stop_sequences(),
             ),
         )
 
-        sampled_seq = result.sequences[0]
-        completion_tokens = list(sampled_seq.tokens)
-        completion_logprobs = (
-            list(sampled_seq.logprobs) if sampled_seq.logprobs else None
-        )
+        seq = result.sequences[0]
+        tokens = list(seq.tokens)
+        logprobs = list(seq.logprobs) if seq.logprobs else None
 
-        if completion_logprobs is None:
-            raise RuntimeError(
-                "Tinker sample response did not include logprobs. "
-                "Enable logprob return from the Tinker API for RL training."
-            )
+        if logprobs is None:
+            raise RuntimeError("Tinker response missing logprobs (required for RL training)")
 
-        content = self._tokenizer.decode(completion_tokens)
+        content = self._tokenizer.decode(tokens)
 
-        if sampled_seq.stop_reason == "length":
+        if seq.stop_reason == "length":
             raise OutputLengthExceededError(
                 f"Output truncated at {self.max_tokens} tokens",
                 truncated_response=content,
             )
 
-        prompt_token_ids = model_input.to_ints()
-
         return LLMResponse(
             content=content,
             reasoning_content=None,
             usage=UsageInfo(
-                prompt_tokens=len(prompt_token_ids),
-                completion_tokens=len(completion_tokens),
+                prompt_tokens=model_input.length,
+                completion_tokens=len(tokens),
                 cache_tokens=0,
                 cost_usd=0.0,
             ),
-            prompt_token_ids=prompt_token_ids,
-            completion_token_ids=completion_tokens,
-            logprobs=completion_logprobs,
+            prompt_token_ids=model_input.to_ints(),
+            completion_token_ids=tokens,
+            logprobs=logprobs,
         )

@@ -1,15 +1,15 @@
-# RL Training with Harbor Terminal Bench
+# RL Training with Tinker + Harbor
 
-[Harbor](https://github.com/abundant-ai/harbor) is a framework for evaluating and training AI agents on terminal-based tasks. It's the official format for TerminalBench 2.0.
+[Harbor](https://github.com/abundant-ai/harbor) is a framework for evaluating AI agents on terminal-use tasks. It's the official format for TerminalBench 2.0, and many other datasets and benchmarks.
 
 ## What is Terminal Bench?
 
-Terminal Bench tasks present agents with coding challenges in sandboxed Docker environments. The agent interacts via a terminal (tmux session), executing shell commands to navigate codebases, edit files, run tests, and fix bugs. 
+Terminal Bench tasks present agents with coding challenges in sandboxed Docker environments. The agent interacts via a terminal, executing shell commands to navigate codebases, edit files, run tests, and fix bugs.
 
 
 ## Installation
 
-1. **Install Harbor** (provides the Trial infrastructure and Terminus2 agent):
+1. **Install Harbor**:
 
 ```bash
 uv pip install https://github.com/laude-institute/harbor
@@ -20,6 +20,12 @@ uv pip install https://github.com/laude-institute/harbor
 ```bash
 docker info
 docker login
+```
+
+3. **Download datasets**:
+
+```bash
+git clone https://github.com/laude-institute/terminal-bench-2/
 ```
 
 ## Usage
@@ -35,9 +41,7 @@ python -m tinker_cookbook.recipes.harbor_rl.train \
     learning_rate=4e-5 \
     max_tokens=1024 \
     temperature=0.7 \
-    environment_type=docker \
     n_parallel_envs=8 \
-    wandb_project=my-project
 ```
 
 ## How It Works
@@ -61,5 +65,3 @@ The agent (Terminus2) handles:
 - **Docker race conditions**: When running multiple trials for the same task in parallel, Docker image builds can conflict. The recipe uses per-task locks to serialize the first build, then subsequent trials run in parallel.
 
 - **Empty trajectories**: If all trials in a batch fail (e.g., Docker issues), the cookbook's metrics computation may error. Check Harbor logs if you see `ZeroDivisionError`.
-
-- **Slow Docker builds**: First run for each task builds the Docker image. Subsequent runs reuse cached images. Consider pre-building images for large task sets. -->
