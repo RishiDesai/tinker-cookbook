@@ -205,8 +205,8 @@ def create_harbor_rollout_handler(
                 f"{len(results)} trials, avg_reward={avg_reward:.3f}"
             )
         else:
-            logger.warning(f"Task {harbor_builder.task.task_id}: all trials failed")
-            return TrajectoryGroup(trajectories_G=[], final_rewards_G=[], metrics_G=[])
+            logger.warning(f"Task {harbor_builder.task.task_id}: all trials failed, skipping")
+            return None
 
         # Convert Harbor results to Tinker trajectory format
         traj_group = convert_results_to_trajectory_group(results)
@@ -216,7 +216,7 @@ def create_harbor_rollout_handler(
             logger.warning(
                 f"Task {harbor_builder.task.task_id}: no transitions collected, skipping"
             )
-            return TrajectoryGroup(trajectories_G=[], final_rewards_G=[], metrics_G=[])
+            return None
 
         return traj_group
 

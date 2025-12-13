@@ -7,7 +7,7 @@ from pathlib import Path
 import chz
 
 from tinker_cookbook import cli_utils
-from tinker_cookbook.rl import train
+from tinker_cookbook.rl import train, data_processing, metric_util
 
 from .harbor_env import (
     HarborRLDatasetBuilder,
@@ -15,6 +15,43 @@ from .harbor_env import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Patch data_processing.remove_constant_reward_groups to filter None values
+# ---------------------------------------------------------------------------
+_orig_remove_constant_reward_groups = data_processing.remove_constant_reward_groups
+
+
+def _patched_remove_constant_reward_groups(trajectory_groups_P):
+    """Filter out None trajectory groups before processing."""
+    valid_groups = [g for g in trajectory_groups_P if g is not None]
+    n_skipped = len(trajectory_groups_P) - len(valid_groups)
+    if n_skipped > 0:
+        logger.info(f"Filtered out {n_skipped} failed/empty trajectory groups")
+    if not valid_groups:
+        logger.warning("All trajectory groups failed or had no valid data, skipping batch")
+        return []
+    return _orig_remove_constant_reward_groups(valid_groups)
+
+
+data_processing.remove_constant_reward_groups = _patched_remove_constant_reward_groups
+
+
+# ---------------------------------------------------------------------------
+# Patch metric_util.compute_trajectory_metrics to handle empty groups
+# ---------------------------------------------------------------------------
+_orig_compute_trajectory_metrics = metric_util.compute_trajectory_metrics
+
+
+def _patched_compute_trajectory_metrics(trajectory_groups_P, taglist_P):
+    """Return empty metrics if no valid trajectory groups."""
+    if not trajectory_groups_P:
+        return {}
+    return _orig_compute_trajectory_metrics(trajectory_groups_P, taglist_P)
+
+
+metric_util.compute_trajectory_metrics = _patched_compute_trajectory_metrics
 
 
 @chz.chz
