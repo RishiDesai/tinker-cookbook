@@ -1,18 +1,23 @@
 # RL Training with Tinker + Harbor
 
-Train models on real-world agent benchmarks using [Harbor](https://github.com/laude-institute/harbor) for rollouts and Tinker for distributed RL training.
+Train models on real-world agent benchmarks using [Harbor](https://github.com/laude-institute/harbor) for rollouts and
+Tinker for distributed RL training.
 
 ## Why Harbor?
 
-Harbor is the official evaluation framework for [Terminal-Bench 2.0](https://github.com/laude-institute/terminal-bench-2) and supports many other third-party benchmarks and datasets.
+Harbor is the official evaluation framework
+for [Terminal-Bench 2.0](https://github.com/laude-institute/terminal-bench-2) and supports many other third-party
+benchmarks and datasets.
 
 1. **Install Harbor**:
+
 ```bash
 uv pip install harbor
 docker info # ensure docking is running
 ```
 
 2. **Download tasks**:
+
 ```bash
 git clone https://github.com/laude-institute/terminal-bench-2/
 ```

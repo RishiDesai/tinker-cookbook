@@ -81,7 +81,7 @@ def convert_results_to_trajectory_group(results: list[TrialResult]) -> Trajector
     """Convert Harbor TrialResults to tinker TrajectoryGroup."""
     if not results:
         return TrajectoryGroup(trajectories_G=[], final_rewards_G=[], metrics_G=[])
-    
+
     trajectories_G: list[Trajectory] = []
     final_rewards_G: list[float] = []
     metrics_G: list[dict[str, float | int]] = []
@@ -149,25 +149,25 @@ def create_harbor_rollout_handler(
     tokenizer = None
     renderer = None
     tinker_llm: TinkerLLM | None = None
-    
+
     async def do_harbor_rollout(
         builder: EnvGroupBuilder,
         policy: TokenCompleter,
     ) -> TrajectoryGroup | None:
         """Run Harbor trials instead of standard Env.step() rollouts."""
         nonlocal tokenizer, renderer, tinker_llm
-        
+
         # Lazy initialize tokenizer and renderer on first call
         if tokenizer is None:
             tokenizer = get_tokenizer(model_name)
             renderer_name = model_info.get_recommended_renderer_name(model_name)
             renderer = renderers.get_renderer(renderer_name, tokenizer)
             logger.info(f"Initialized tokenizer and renderer: {renderer_name}")
-        
+
         # Get current sampling client from policy
         sampling_client = cast(TinkerTokenCompleter, policy).sampling_client
         harbor_builder = cast(HarborEnvGroupBuilder, builder)
-        
+
         # Create or update TinkerLLM with current sampling client
         if tinker_llm is None:
             tinker_llm = TinkerLLM(
@@ -182,7 +182,7 @@ def create_harbor_rollout_handler(
             logger.info("Created TinkerLLM instance")
         else:
             tinker_llm.update_sampling_client(sampling_client)
-        
+
         # Run Harbor trials
         results = await run_harbor_trials(
             task=harbor_builder.task,
@@ -191,7 +191,7 @@ def create_harbor_rollout_handler(
             trials_dir=trials_dir,
             max_concurrent=max_concurrent_trials,
         )
-        
+
         # Log results
         if results:
             rewards = [
@@ -207,19 +207,19 @@ def create_harbor_rollout_handler(
         else:
             logger.warning(f"Task {harbor_builder.task.task_id}: all trials failed")
             return TrajectoryGroup(trajectories_G=[], final_rewards_G=[], metrics_G=[])
-        
+
         # Convert Harbor results to Tinker trajectory format
         traj_group = convert_results_to_trajectory_group(results)
-        
+
         # Skip if no valid transitions were collected
         if not any(t.transitions for t in traj_group.trajectories_G):
             logger.warning(
                 f"Task {harbor_builder.task.task_id}: no transitions collected, skipping"
             )
             return TrajectoryGroup(trajectories_G=[], final_rewards_G=[], metrics_G=[])
-        
+
         return traj_group
-    
+
     return do_harbor_rollout
 
 
