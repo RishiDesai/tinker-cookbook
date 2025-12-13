@@ -77,6 +77,9 @@ def extract_reward(verifier_result: Any) -> float:
 
 def convert_results_to_trajectory_group(results: list[TrialResult]) -> TrajectoryGroup:
     """Convert Harbor TrialResults to tinker TrajectoryGroup."""
+    if not results:
+        return TrajectoryGroup(trajectories_G=[], final_rewards_G=[], metrics_G=[])
+    
     trajectories_G: list[Trajectory] = []
     final_rewards_G: list[float] = []
     metrics_G: list[dict[str, float | int]] = []

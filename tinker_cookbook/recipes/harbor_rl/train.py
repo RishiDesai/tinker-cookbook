@@ -118,14 +118,14 @@ async def cli_main(cli_config: CLIConfig):
             logger.info(f"Task {harbor_builder.task.task_id}: {len(results)} trials, avg={sum(rewards)/len(rewards):.3f}")
         else:
             logger.warning(f"Task {harbor_builder.task.task_id}: all trials failed")
-            return None
+            return TrajectoryGroup(trajectories_G=[], final_rewards_G=[], metrics_G=[])
 
         traj_group = convert_results_to_trajectory_group(results)
 
         # Skip if no valid transitions were collected
         if not any(t.transitions for t in traj_group.trajectories_G):
             logger.warning(f"Task {harbor_builder.task.task_id}: no transitions collected, skipping")
-            return None
+            return TrajectoryGroup(trajectories_G=[], final_rewards_G=[], metrics_G=[])
 
         return traj_group
 
