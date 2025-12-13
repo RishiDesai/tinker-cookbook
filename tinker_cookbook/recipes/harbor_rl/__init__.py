@@ -1,15 +1,20 @@
-from tinker_cookbook.recipes.harbor_rl.harbor_env import (
+from .harbor_env import (
     HarborEnvGroupBuilder,
     HarborRLDataset,
     HarborRLDatasetBuilder,
-    run_harbor_group,
+    convert_results_to_trajectory_group,
+    run_harbor_trials,
 )
-from tinker_cookbook.recipes.harbor_rl.tinker_llm import TinkerLLM
+from .tinker_llm import TinkerLLM
+from .train import CLIConfig, cli_main
 
 __all__ = [
+    "CLIConfig",
     "HarborEnvGroupBuilder",
     "HarborRLDataset",
     "HarborRLDatasetBuilder",
     "TinkerLLM",
-    "run_harbor_group",
+    "cli_main",
+    "convert_results_to_trajectory_group",
+    "run_harbor_trials",
 ]

@@ -11,14 +11,14 @@ from tinker_cookbook.tokenizer_utils import Tokenizer
 
 
 class TinkerLLM(BaseLLM, BaseModel):
-    """LLM backend using Tinker SamplingClient for Harbor agents."""
+    """LLM backend for Harbor Terminus 2 agent."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     model_name: str
-    max_tokens: int = 1024
-    temperature: float = 0.7
-    context_limit: int = 32000
+    max_tokens: int
+    temperature: float
+    context_limit: int
 
     _client: tinker.SamplingClient = PrivateAttr()
     _tokenizer: Tokenizer = PrivateAttr()
@@ -63,7 +63,7 @@ class TinkerLLM(BaseLLM, BaseModel):
 
         if model_input.length > self.context_limit - self.max_tokens:
             raise ContextLengthExceededError(
-                f"Context length {model_input.length} exceeds limit {self.context_limit - self.max_tokens}"
+                f"Context length {model_input.length} exceeds limit"
             )
 
         result = await self._client.sample_async(
@@ -81,7 +81,7 @@ class TinkerLLM(BaseLLM, BaseModel):
         logprobs = list(seq.logprobs) if seq.logprobs else None
 
         if logprobs is None:
-            raise RuntimeError("Tinker response missing logprobs (required for RL training)")
+            raise RuntimeError("Tinker response missing logprobs")
 
         content = self._tokenizer.decode(tokens)
 
